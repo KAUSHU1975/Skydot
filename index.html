@@ -161,6 +161,7 @@
   .iconBtn.recording{color:var(--danger);animation:pulse 1s infinite;}
   #micBtn{display:none;}
   .sendBtn{width:36px;height:36px;border-radius:8px;background:var(--aqua);border:none;color:var(--night);font-weight:700;flex-shrink:0;}
+  .textToggle.on{background:var(--panel);color:var(--aqua);}
 
   /* ---- Pricing pane ---- */
   .pane{padding:32px;overflow-y:auto;flex:1;}
@@ -290,8 +291,9 @@
         <div class="attachRow" id="attachRow"></div>
         <div class="inputWrap">
           <button class="iconBtn" title="Attach a file" onclick="document.getElementById('fileInput').click()">📎</button>
-          <input type="file" id="fileInput" style="display:none" onchange="handleFileUpload(this)">
+          <input type="file" id="fileInput" accept="*/*" style="display:none" onchange="handleFileUpload(this)">
           <textarea id="chatInput" rows="1" placeholder="Message Skydot..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+          <button class="iconBtn textToggle" id="textToggle" title="Show written answers for voice questions" onclick="toggleVoiceText()">Aa</button>
           <button class="iconBtn" id="micBtn" title="Voice command" onclick="handleVoice()">🎤</button>
           <button class="sendBtn" onclick="sendMessage()">➤</button>
         </div>
@@ -387,12 +389,14 @@
 
 const DB_KEY = 'skydot_users_v1';
 const SESSION_KEY = 'skydot_session_v1';
+const VOICE_TEXT_KEY = 'skydot_voice_text_v1';
 
 function loadUsers(){ return JSON.parse(localStorage.getItem(DB_KEY) || '{}'); }
 function saveUsers(u){ localStorage.setItem(DB_KEY, JSON.stringify(u)); }
 function setSession(email){ localStorage.setItem(SESSION_KEY, email); }
 function getSession(){ return localStorage.getItem(SESSION_KEY); }
 function clearSession(){ localStorage.removeItem(SESSION_KEY); }
+function showVoiceText(){ return localStorage.getItem(VOICE_TEXT_KEY) === 'true'; }
 
 let currentUser = null;
 
@@ -551,7 +555,19 @@ function renderApp(){
   document.getElementById('settingsNameInput').value = u.name || '';
   document.getElementById('settingsEmail').textContent = u.email;
   populateVoiceLanguages();
+  updateVoiceTextUI();
   updatePlanUI();
+}
+
+function updateVoiceTextUI(){
+  const button = document.getElementById('textToggle');
+  if(button) button.classList.toggle('on', showVoiceText());
+}
+
+function toggleVoiceText(){
+  localStorage.setItem(VOICE_TEXT_KEY, String(!showVoiceText()));
+  updateVoiceTextUI();
+  showToast(showVoiceText() ? 'Voice answers will also appear as text.' : 'Voice answers will stay voice-only.');
 }
 
 function saveVoiceLanguage(){
@@ -709,6 +725,7 @@ function handleVoice(){
     speakText('Okay sir, I am listening. Let me prepare your answer.', ['aiAvatarMini']);
     setTimeout(()=>{
       const reply = mockAIReply(said);
+      if(showVoiceText()) addMessage('ai', reply);
       speakText(reply, ['aiAvatarMini'], ()=>{ if(conversationMode) setTimeout(startConversation, 400); });
     }, 1800);
   };
