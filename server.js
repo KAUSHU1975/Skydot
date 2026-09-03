@@ -115,18 +115,35 @@ app.get('/api/me', auth, (req, res) => {
 /* ---------- chat (plug your AI provider in here) ---------- */
 app.post('/api/chat', auth, async (req, res) => {
   const { message } = req.body;
+  if (!message || typeof message !== 'string') {
+    return res.status(400).json({ error: 'Message required.' });
+  }
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(503).json({ error: 'OPENAI_API_KEY is not configured.' });
+  }
 
-  // TODO: replace this stub with a real call, e.g. the Anthropic API:
-  //
-  // const r = await fetch('https://api.anthropic.com/v1/messages', {
-  //   method: 'POST',
-  //   headers: { 'content-type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-  //   body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: message }] }),
-  // });
-  // const data = await r.json();
-  // return res.json({ reply: data.content[0].text });
-
-  res.json({ reply: `(demo reply) You said: "${message}". Connect a real AI provider in server.js to make this live.` });
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        temperature: 0.4,
+        messages: [
+          { role: 'system', content: 'You are Skydot, a helpful multilingual voice assistant. Reply in the same language as the user. Keep normal voice-conversation answers concise unless the user asks for detail.' },
+          { role: 'user', content: message.trim() },
+        ],
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) return res.status(response.status).json({ error: data.error?.message || 'OpenAI request failed.' });
+    res.json({ reply: data.choices?.[0]?.message?.content || 'I could not generate an answer.' });
+  } catch {
+    res.status(502).json({ error: 'AI service is temporarily unavailable.' });
+  }
 });
 
 /* ---------- file upload (enforces the free-plan limit) ---------- */

@@ -648,14 +648,30 @@ function mockAIReply(userText){
   return replies[Math.floor(Math.random()*replies.length)] + ' (This is a demo reply — connect a real model in server.js to get live answers.)';
 }
 
+async function getAIReply(userText){
+  try{
+    const response = await fetch('/api/chat', {
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({message:userText})
+    });
+    const data = await response.json();
+    if(!response.ok) throw new Error(data.error || 'AI request failed');
+    return data.reply;
+  }catch(error){
+    showToast(error.message.includes('OPENAI_API_KEY') ? 'OpenAI key is not configured on Vercel.' : 'AI is unavailable right now.');
+    return mockAIReply(userText);
+  }
+}
+
 function sendMessage(){
   const input = document.getElementById('chatInput');
   const text = input.value.trim();
   if(!text) return;
   addMessage('user', text);
   input.value='';
-  setTimeout(()=>{
-    const reply = mockAIReply(text);
+  setTimeout(async ()=>{
+    const reply = await getAIReply(text);
     addMessage('ai', reply);
     speakText(reply, ['aiAvatarMini']); // AI speaks its reply on its own — no mic press needed to hear it
   }, 400);
@@ -723,8 +739,8 @@ function handleVoice(){
     const said = e.results[0][0].transcript;
     countUsage();
     speakText('Okay sir, I am listening. Let me prepare your answer.', ['aiAvatarMini']);
-    setTimeout(()=>{
-      const reply = mockAIReply(said);
+    setTimeout(async ()=>{
+      const reply = await getAIReply(said);
       if(showVoiceText()) addMessage('ai', reply);
       speakText(reply, ['aiAvatarMini'], ()=>{ if(conversationMode) setTimeout(startConversation, 400); });
     }, 1800);
