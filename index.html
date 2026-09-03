@@ -349,9 +349,7 @@
         <h3>Voice language</h3>
         <div class="settingsRow"><span class="muted">Speak in</span>
           <select id="voiceLanguage" onchange="saveVoiceLanguage()" style="padding:6px 8px;background:var(--night-2);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:13px;">
-            <option value="en-IN">English (India)</option>
-            <option value="hi-IN">Hindi</option>
-            <option value="en-US">English (US)</option>
+            <option value="auto">Auto detect browser language</option>
           </select>
         </div>
       </div>
@@ -469,15 +467,48 @@ function submitName(){
 
 /* ---------------- Text-to-speech: the AI "talks" on its own ---------------- */
 let skydotVoice = null;
+const supportedLanguages = [
+  ['ar-SA','Arabic'], ['bn-IN','Bengali'], ['bg-BG','Bulgarian'], ['ca-ES','Catalan'],
+  ['zh-CN','Chinese (Simplified)'], ['zh-TW','Chinese (Traditional)'], ['hr-HR','Croatian'],
+  ['cs-CZ','Czech'], ['da-DK','Danish'], ['nl-NL','Dutch'], ['en-AU','English (Australia)'],
+  ['en-IN','English (India)'], ['en-GB','English (UK)'], ['en-US','English (US)'],
+  ['et-EE','Estonian'], ['fi-FI','Finnish'], ['fr-FR','French'], ['de-DE','German'],
+  ['el-GR','Greek'], ['gu-IN','Gujarati'], ['he-IL','Hebrew'], ['hi-IN','Hindi'],
+  ['hu-HU','Hungarian'], ['id-ID','Indonesian'], ['it-IT','Italian'], ['ja-JP','Japanese'],
+  ['kn-IN','Kannada'], ['ko-KR','Korean'], ['lv-LV','Latvian'], ['lt-LT','Lithuanian'],
+  ['ms-MY','Malay'], ['ml-IN','Malayalam'], ['mr-IN','Marathi'], ['nb-NO','Norwegian'],
+  ['fa-IR','Persian'], ['pl-PL','Polish'], ['pt-BR','Portuguese (Brazil)'], ['pt-PT','Portuguese (Portugal)'],
+  ['pa-IN','Punjabi'], ['ro-RO','Romanian'], ['ru-RU','Russian'], ['sr-RS','Serbian'],
+  ['sk-SK','Slovak'], ['sl-SI','Slovenian'], ['es-ES','Spanish (Spain)'], ['es-MX','Spanish (Mexico)'],
+  ['sw-KE','Swahili'], ['sv-SE','Swedish'], ['ta-IN','Tamil'], ['te-IN','Telugu'],
+  ['th-TH','Thai'], ['tr-TR','Turkish'], ['uk-UA','Ukrainian'], ['ur-PK','Urdu'],
+  ['vi-VN','Vietnamese'], ['cy-GB','Welsh']
+];
+
+function getVoiceLanguage(){
+  const selected = localStorage.getItem('skydot_voice_language_v1') || 'auto';
+  return selected === 'auto' ? (navigator.language || 'en-US') : selected;
+}
+
+function populateVoiceLanguages(){
+  const select = document.getElementById('voiceLanguage');
+  if(!select) return;
+  const selected = localStorage.getItem('skydot_voice_language_v1') || 'auto';
+  const options = [['auto', 'Auto detect browser language'], ...supportedLanguages];
+  select.innerHTML = options.map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
+  select.value = options.some(([value])=>value === selected) ? selected : 'auto';
+}
+
 function loadSkydotVoice(){
   const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
-  const language = localStorage.getItem('skydot_voice_language_v1') || 'en-IN';
+  const language = getVoiceLanguage();
   skydotVoice = voices.find(v=>v.lang.toLowerCase() === language.toLowerCase()) || voices.find(v=>v.lang.toLowerCase().startsWith(language.slice(0, 2).toLowerCase())) || voices[0] || null;
 }
 if('speechSynthesis' in window){
   window.speechSynthesis.onvoiceschanged = loadSkydotVoice;
   loadSkydotVoice();
 }
+populateVoiceLanguages();
 function speakText(text, avatarIds){
   const avatars = (avatarIds||[]).map(id=>document.getElementById(id)).filter(Boolean);
   if(!('speechSynthesis' in window)){
@@ -489,7 +520,7 @@ function speakText(text, avatarIds){
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   utter.rate = 0.78; utter.pitch = 1.02;
-  utter.lang = localStorage.getItem('skydot_voice_language_v1') || 'en-IN';
+  utter.lang = getVoiceLanguage();
   if(skydotVoice) utter.voice = skydotVoice;
   utter.onstart = ()=> avatars.forEach(a=>a.classList.add('speaking'));
   utter.onend   = ()=> avatars.forEach(a=>a.classList.remove('speaking'));
@@ -514,7 +545,7 @@ function renderApp(){
   document.getElementById('chatGreeting').textContent = u.name ? `Hi ${u.name}, what are we building today?` : 'Chat';
   document.getElementById('settingsNameInput').value = u.name || '';
   document.getElementById('settingsEmail').textContent = u.email;
-  document.getElementById('voiceLanguage').value = localStorage.getItem('skydot_voice_language_v1') || 'en-IN';
+  populateVoiceLanguages();
   updatePlanUI();
 }
 
@@ -659,7 +690,7 @@ function handleVoice(){
     return;
   }
   const rec = new SpeechRec();
-  rec.lang = localStorage.getItem('skydot_voice_language_v1') || 'en-IN';
+  rec.lang = getVoiceLanguage();
   rec.onstart = ()=> micBtn.classList.add('recording');
   rec.onend = ()=> micBtn.classList.remove('recording');
   rec.onresult = (e)=>{
