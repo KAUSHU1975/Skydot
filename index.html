@@ -499,11 +499,11 @@ function getVoiceLanguage(){
 
 function detectVoiceLanguage(text){
   const ranges = [
-    [/\p{Devanagari}/u, 'hi-IN'], [/\p{Arabic}/u, 'ur-PK'], [/\p{Bengali}/u, 'bn-IN'],
-    [/\p{Gujarati}/u, 'gu-IN'], [/\p{Gurmukhi}/u, 'pa-IN'], [/\p{Tamil}/u, 'ta-IN'],
-    [/\p{Telugu}/u, 'te-IN'], [/\p{Kannada}/u, 'kn-IN'], [/\p{Malayalam}/u, 'ml-IN'],
-    [/\p{Thai}/u, 'th-TH'], [/\p{Cyrillic}/u, 'ru-RU'], [/\p{Han}/u, 'zh-CN'],
-    [/\p{Hiragana}|\p{Katakana}/u, 'ja-JP'], [/\p{Hangul}/u, 'ko-KR']
+    [/\p{Script=Devanagari}/u, 'hi-IN'], [/\p{Script=Arabic}/u, 'ur-PK'], [/\p{Script=Bengali}/u, 'bn-IN'],
+    [/\p{Script=Gujarati}/u, 'gu-IN'], [/\p{Script=Gurmukhi}/u, 'pa-IN'], [/\p{Script=Tamil}/u, 'ta-IN'],
+    [/\p{Script=Telugu}/u, 'te-IN'], [/\p{Script=Kannada}/u, 'kn-IN'], [/\p{Script=Malayalam}/u, 'ml-IN'],
+    [/\p{Script=Thai}/u, 'th-TH'], [/\p{Script=Cyrillic}/u, 'ru-RU'], [/\p{Script=Han}/u, 'zh-CN'],
+    [/\p{Script=Hiragana}|\p{Script=Katakana}/u, 'ja-JP'], [/\p{Script=Hangul}/u, 'ko-KR']
   ];
   return ranges.find(([pattern])=>pattern.test(text))?.[1] || getVoiceLanguage();
 }
