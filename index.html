@@ -159,6 +159,7 @@
   .iconBtn{width:34px;height:34px;border-radius:8px;background:none;border:none;color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
   .iconBtn:hover{background:var(--panel);color:var(--text);}
   .iconBtn.recording{color:var(--danger);animation:pulse 1s infinite;}
+  #micBtn{display:none;}
   .sendBtn{width:36px;height:36px;border-radius:8px;background:var(--aqua);border:none;color:var(--night);font-weight:700;flex-shrink:0;}
 
   /* ---- Pricing pane ---- */
@@ -446,6 +447,7 @@ function loginAs(email){
       const greet = `Welcome back to Skydot, ${currentUser.name}! How can I help you today?`;
       addMessage('ai', greet);
       speakText(greet, ['aiAvatarMini']);
+      setTimeout(startConversation, 2200);
     }, 500);
   }
 }
@@ -463,6 +465,7 @@ function submitName(){
   const welcomeMsg = `Welcome to Skydot, ${val}! I'm ready when you are — ask me anything, attach a file, or use your voice.`;
   addMessage('ai', welcomeMsg);
   setTimeout(()=>speakText(welcomeMsg, ['aiAvatarMini']), 300);
+  setTimeout(startConversation, 3200);
 }
 
 /* ---------------- Text-to-speech: the AI "talks" on its own ---------------- */
@@ -509,12 +512,12 @@ if('speechSynthesis' in window){
   loadSkydotVoice();
 }
 populateVoiceLanguages();
-function speakText(text, avatarIds){
+function speakText(text, avatarIds, onEnd){
   const avatars = (avatarIds||[]).map(id=>document.getElementById(id)).filter(Boolean);
   if(!('speechSynthesis' in window)){
     // Speech not supported by this browser — just animate the avatar briefly so it still feels alive.
     avatars.forEach(a=>a.classList.add('speaking'));
-    setTimeout(()=>avatars.forEach(a=>a.classList.remove('speaking')), Math.min(4000, text.length*60));
+    setTimeout(()=>{ avatars.forEach(a=>a.classList.remove('speaking')); if(onEnd) onEnd(); }, Math.min(4000, text.length*60));
     return;
   }
   window.speechSynthesis.cancel();
@@ -523,12 +526,14 @@ function speakText(text, avatarIds){
   utter.lang = getVoiceLanguage();
   if(skydotVoice) utter.voice = skydotVoice;
   utter.onstart = ()=> avatars.forEach(a=>a.classList.add('speaking'));
-  utter.onend   = ()=> avatars.forEach(a=>a.classList.remove('speaking'));
-  utter.onerror = ()=> avatars.forEach(a=>a.classList.remove('speaking'));
+  utter.onend   = ()=>{ avatars.forEach(a=>a.classList.remove('speaking')); if(onEnd) onEnd(); };
+  utter.onerror = ()=>{ avatars.forEach(a=>a.classList.remove('speaking')); if(onEnd) onEnd(); };
   window.speechSynthesis.speak(utter);
 }
 
 function handleLogout(){
+  conversationMode = false;
+  if('speechSynthesis' in window) window.speechSynthesis.cancel();
   clearSession();
   currentUser = null;
   document.getElementById('appScreen').classList.remove('active');
@@ -690,20 +695,35 @@ function handleVoice(){
     return;
   }
   const rec = new SpeechRec();
+  let gotResult = false;
   rec.lang = getVoiceLanguage();
   rec.onstart = ()=> micBtn.classList.add('recording');
-  rec.onend = ()=> micBtn.classList.remove('recording');
+  rec.onend = ()=>{
+    micBtn.classList.remove('recording');
+    if(!gotResult && conversationMode) setTimeout(startConversation, 500);
+  };
   rec.onresult = (e)=>{
+    gotResult = true;
     const said = e.results[0][0].transcript;
     countUsage();
     speakText('Okay sir, I am listening. Let me prepare your answer.', ['aiAvatarMini']);
     setTimeout(()=>{
       const reply = mockAIReply(said);
-      speakText(reply, ['aiAvatarMini']);
+      speakText(reply, ['aiAvatarMini'], ()=>{ if(conversationMode) setTimeout(startConversation, 400); });
     }, 1800);
   };
-  rec.onerror = ()=> micBtn.classList.remove('recording');
+  rec.onerror = ()=>{
+    micBtn.classList.remove('recording');
+    if(conversationMode) setTimeout(startConversation, 1000);
+  };
   rec.start();
+}
+
+let conversationMode = false;
+function startConversation(){
+  if(!currentUser || conversationMode && document.getElementById('micBtn').classList.contains('recording')) return;
+  conversationMode = true;
+  handleVoice();
 }
 
 /* ---------------- Boot ---------------- */
