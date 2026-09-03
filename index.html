@@ -497,6 +497,17 @@ function getVoiceLanguage(){
   return selected === 'auto' ? (navigator.language || 'en-US') : selected;
 }
 
+function detectVoiceLanguage(text){
+  const ranges = [
+    [/\p{Devanagari}/u, 'hi-IN'], [/\p{Arabic}/u, 'ur-PK'], [/\p{Bengali}/u, 'bn-IN'],
+    [/\p{Gujarati}/u, 'gu-IN'], [/\p{Gurmukhi}/u, 'pa-IN'], [/\p{Tamil}/u, 'ta-IN'],
+    [/\p{Telugu}/u, 'te-IN'], [/\p{Kannada}/u, 'kn-IN'], [/\p{Malayalam}/u, 'ml-IN'],
+    [/\p{Thai}/u, 'th-TH'], [/\p{Cyrillic}/u, 'ru-RU'], [/\p{Han}/u, 'zh-CN'],
+    [/\p{Hiragana}|\p{Katakana}/u, 'ja-JP'], [/\p{Hangul}/u, 'ko-KR']
+  ];
+  return ranges.find(([pattern])=>pattern.test(text))?.[1] || getVoiceLanguage();
+}
+
 function populateVoiceLanguages(){
   const select = document.getElementById('voiceLanguage');
   if(!select) return;
@@ -527,8 +538,11 @@ function speakText(text, avatarIds, onEnd){
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   utter.rate = 0.78; utter.pitch = 1.02;
-  utter.lang = getVoiceLanguage();
-  if(skydotVoice) utter.voice = skydotVoice;
+  const language = detectVoiceLanguage(text);
+  utter.lang = language;
+  const voices = window.speechSynthesis.getVoices();
+  const voice = voices.find(v=>v.lang.toLowerCase() === language.toLowerCase()) || voices.find(v=>v.lang.toLowerCase().startsWith(language.slice(0, 2).toLowerCase()));
+  if(voice) utter.voice = voice;
   utter.onstart = ()=> avatars.forEach(a=>a.classList.add('speaking'));
   utter.onend   = ()=>{ avatars.forEach(a=>a.classList.remove('speaking')); if(onEnd) onEnd(); };
   utter.onerror = ()=>{ avatars.forEach(a=>a.classList.remove('speaking')); if(onEnd) onEnd(); };
@@ -537,6 +551,7 @@ function speakText(text, avatarIds, onEnd){
 
 function handleLogout(){
   conversationMode = false;
+  if(activeRecognition) activeRecognition.stop();
   if('speechSynthesis' in window) window.speechSynthesis.cancel();
   clearSession();
   currentUser = null;
@@ -727,12 +742,13 @@ function handleVoice(){
     return;
   }
   const rec = new SpeechRec();
+  activeRecognition = rec;
   let gotResult = false;
   rec.lang = getVoiceLanguage();
   rec.onstart = ()=> micBtn.classList.add('recording');
   rec.onend = ()=>{
     micBtn.classList.remove('recording');
-    if(!gotResult && conversationMode) setTimeout(startConversation, 500);
+    if(activeRecognition === rec) activeRecognition = null;
   };
   rec.onresult = (e)=>{
     gotResult = true;
@@ -747,12 +763,13 @@ function handleVoice(){
   };
   rec.onerror = ()=>{
     micBtn.classList.remove('recording');
-    if(conversationMode) setTimeout(startConversation, 1000);
+    if(activeRecognition === rec) activeRecognition = null;
   };
   rec.start();
 }
 
 let conversationMode = false;
+let activeRecognition = null;
 function startConversation(){
   if(!currentUser || conversationMode && document.getElementById('micBtn').classList.contains('recording')) return;
   conversationMode = true;
