@@ -696,12 +696,11 @@ function handleVoice(){
   rec.onresult = (e)=>{
     const said = e.results[0][0].transcript;
     countUsage();
-    addMessage('user', '🎤 ' + said);
+    speakText('Okay sir, I am listening. Let me prepare your answer.', ['aiAvatarMini']);
     setTimeout(()=>{
       const reply = mockAIReply(said);
-      addMessage('ai', reply);
       speakText(reply, ['aiAvatarMini']);
-    }, 400);
+    }, 1800);
   };
   rec.onerror = ()=> micBtn.classList.remove('recording');
   rec.start();
