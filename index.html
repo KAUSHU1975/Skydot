@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skydot — Your AI in the sky</title>
+<style>
+  :root{
+    --night:#0B1220;
+    --night-2:#101A2E;
+    --panel:#141F38;
+    --line:#24304C;
+    --text:#E8ECF6;
+    --muted:#8C9AC0;
+    --aqua:#4FD1C5;
+    --aqua-dim:#2C7A72;
+    --gold:#F5B942;
+    --danger:#E8626B;
+    --radius:10px;
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  }
+  @font-face{
+    font-family:'SkyDisplay';
+    src:local('Georgia');
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:var(--night);color:var(--text);}
+  body{display:flex;flex-direction:column;min-height:100vh;}
+  a{color:inherit;}
+  button{font-family:inherit;cursor:pointer;}
+  ::selection{background:var(--aqua);color:var(--night);}
+
+  /* ---------- Top-level screens ---------- */
+  .screen{flex:1;display:none;flex-direction:column;}
+  .screen.active{display:flex;}
+
+  /* ---------- Auth screen ---------- */
+  #authScreen{align-items:center;justify-content:center;padding:24px;position:relative;overflow:hidden;}
+  #authScreen::before{
+    content:"";position:absolute;inset:0;
+    background:
+      radial-gradient(1px 1px at 10% 20%, #fff 0, transparent 60%),
+      radial-gradient(1px 1px at 80% 10%, #fff 0, transparent 60%),
+      radial-gradient(1.5px 1.5px at 60% 70%, #fff 0, transparent 60%),
+      radial-gradient(1px 1px at 30% 80%, #fff 0, transparent 60%),
+      radial-gradient(1px 1px at 90% 60%, #fff 0, transparent 60%),
+      radial-gradient(1.5px 1.5px at 45% 35%, #fff 0, transparent 60%);
+    opacity:.5;pointer-events:none;
+  }
+  .authCard{
+    position:relative;z-index:1;width:100%;max-width:400px;
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:36px 32px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:28px;justify-content:center;}
+  .brandDot{width:14px;height:14px;border-radius:50%;background:var(--aqua);box-shadow:0 0 14px var(--aqua);}
+  .brandName{font-family:Georgia,'Times New Roman',serif;font-size:26px;letter-spacing:.3px;}
+  .authCard h1{font-size:18px;font-weight:600;margin:0 0 6px;text-align:center;}
+  .authCard p.sub{color:var(--muted);font-size:13px;text-align:center;margin:0 0 24px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;}
+  .field input{
+    width:100%;padding:11px 12px;background:var(--night-2);border:1px solid var(--line);
+    border-radius:8px;color:var(--text);font-size:14px;outline:none;
+  }
+  .field input:focus{border-color:var(--aqua);}
+  .primaryBtn{
+    width:100%;padding:12px;background:var(--aqua);border:none;color:var(--night);
+    font-weight:600;border-radius:8px;font-size:14px;margin-top:6px;
+  }
+  .primaryBtn:hover{background:#63dbd0;}
+  .ghostLink{display:block;text-align:center;margin-top:16px;font-size:13px;color:var(--muted);}
+  .ghostLink button{background:none;border:none;color:var(--aqua);font-size:13px;padding:0;}
+  .authErr{color:var(--danger);font-size:12px;margin-top:10px;text-align:center;min-height:14px;}
+
+  /* ---------- Welcome overlay ---------- */
+  #welcomeOverlay{
+    position:fixed;inset:0;background:rgba(6,10,20,.88);display:none;
+    align-items:center;justify-content:center;z-index:50;
+  }
+  #welcomeOverlay.active{display:flex;}
+  .welcomeBox{text-align:center;max-width:420px;padding:20px;}
+  .welcomeBox h2{font-family:Georgia,serif;font-size:26px;margin:0 0 10px;}
+  .welcomeBox p{color:var(--muted);font-size:14px;}
+
+  /* ---------- AI avatar (the "face" that talks) ---------- */
+  .aiAvatar{
+    width:70px;height:70px;border-radius:50%;margin:0 auto 22px;position:relative;flex-shrink:0;
+    background:radial-gradient(circle at 35% 30%, #9CF0E7, var(--aqua));
+    box-shadow:0 0 26px rgba(79,209,197,.45);transition:box-shadow .15s;
+  }
+  .aiAvatar .eye{position:absolute;width:7px;height:7px;background:var(--night);border-radius:50%;top:25px;transition:height .1s;}
+  .aiAvatar .eye.l{left:21px;} .aiAvatar .eye.r{right:21px;}
+  .aiAvatar .mouth{
+    position:absolute;left:50%;bottom:17px;transform:translateX(-50%);
+    width:22px;height:4px;background:var(--night);border-radius:4px;transition:height .1s;
+  }
+  .aiAvatar.speaking{box-shadow:0 0 40px rgba(79,209,197,.85);}
+  .aiAvatar.speaking .mouth{animation:talk .3s ease-in-out infinite;}
+  .aiAvatar.speaking .eye{animation:blink 2.4s ease-in-out infinite;}
+  @keyframes talk{0%,100%{height:4px;}50%{height:13px;}}
+  @keyframes blink{0%,92%,100%{height:7px;}96%{height:1px;}}
+  .aiAvatar.mini{width:34px;height:34px;margin:0;box-shadow:none;}
+  .aiAvatar.mini .eye{width:4px;height:4px;top:12px;}
+  .aiAvatar.mini .eye.l{left:10px;} .aiAvatar.mini .eye.r{right:10px;}
+  .aiAvatar.mini .mouth{width:11px;height:2px;bottom:8px;}
+  .aiAvatar.mini.speaking .mouth{animation:talkMini .3s ease-in-out infinite;}
+  @keyframes talkMini{0%,100%{height:2px;}50%{height:6px;}}
+  .headerBrandRow{display:flex;align-items:center;gap:10px;}
+
+  /* ---------- App shell ---------- */
+  #appScreen{flex-direction:row;height:100vh;}
+  .sidebar{
+    width:250px;flex-shrink:0;background:var(--night-2);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;padding:18px 14px;
+  }
+  .sidebar .brand{justify-content:flex-start;margin-bottom:22px;}
+  .navBtn{
+    display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;
+    color:var(--muted);padding:10px 12px;border-radius:8px;font-size:14px;margin-bottom:2px;
+  }
+  .navBtn:hover{background:var(--panel);color:var(--text);}
+  .navBtn.active{background:var(--panel);color:var(--text);border:1px solid var(--line);}
+  .navSpacer{flex:1;}
+  .planBadge{
+    padding:12px;border-radius:8px;border:1px solid var(--line);font-size:12px;color:var(--muted);margin-bottom:10px;
+  }
+  .planBadge b{color:var(--text);}
+  .planBadge.pro{border-color:var(--gold);}
+  .planBadge.pro b{color:var(--gold);}
+  .upgradeMini{
+    width:100%;padding:9px;background:var(--gold);border:none;color:#1a1200;font-weight:700;
+    border-radius:8px;font-size:12.5px;margin-top:8px;
+  }
+  .userRow{display:flex;align-items:center;gap:10px;padding:10px 6px;border-top:1px solid var(--line);margin-top:8px;}
+  .userAvatar{width:30px;height:30px;border-radius:50%;background:var(--aqua-dim);color:var(--text);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;}
+  .userName{font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .logoutBtn{background:none;border:none;color:var(--muted);font-size:12px;}
+  .logoutBtn:hover{color:var(--danger);}
+
+  .mainPane{flex:1;display:flex;flex-direction:column;min-width:0;}
+
+  /* ---- Chat pane ---- */
+  .chatHeader{padding:16px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;}
+  .chatHeader h2{font-size:15px;margin:0;font-weight:600;}
+  .limitPill{font-size:11.5px;color:var(--muted);background:var(--panel);border:1px solid var(--line);padding:4px 10px;border-radius:20px;}
+  .chatBody{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:14px;}
+  .msg{max-width:70%;padding:11px 14px;border-radius:12px;font-size:14px;line-height:1.5;}
+  .msg.user{align-self:flex-end;background:var(--aqua);color:var(--night);border-bottom-right-radius:3px;}
+  .msg.ai{align-self:flex-start;background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:3px;}
+  .msg.sys{align-self:center;color:var(--muted);font-size:12px;background:none;}
+  .chatInputBar{padding:16px 24px;border-top:1px solid var(--line);}
+  .attachRow{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+  .attachChip{font-size:11.5px;background:var(--night-2);border:1px solid var(--line);padding:4px 8px;border-radius:6px;color:var(--muted);}
+  .inputWrap{display:flex;align-items:flex-end;gap:8px;background:var(--night-2);border:1px solid var(--line);border-radius:10px;padding:8px;}
+  .inputWrap textarea{
+    flex:1;background:none;border:none;color:var(--text);resize:none;outline:none;font-size:14px;
+    max-height:120px;padding:6px 4px;font-family:inherit;
+  }
+  .iconBtn{width:34px;height:34px;border-radius:8px;background:none;border:none;color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+  .iconBtn:hover{background:var(--panel);color:var(--text);}
+  .iconBtn.recording{color:var(--danger);animation:pulse 1s infinite;}
+  .sendBtn{width:36px;height:36px;border-radius:8px;background:var(--aqua);border:none;color:var(--night);font-weight:700;flex-shrink:0;}
+
+  /* ---- Pricing pane ---- */
+  .pane{padding:32px;overflow-y:auto;flex:1;}
+  .pane h1{font-family:Georgia,serif;font-size:26px;margin:0 0 6px;}
+  .pane p.lead{color:var(--muted);font-size:14px;margin:0 0 28px;}
+  .plans{display:flex;gap:18px;flex-wrap:wrap;}
+  .planCard{
+    flex:1;min-width:250px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:24px;display:flex;flex-direction:column;
+  }
+  .planCard.highlight{border-color:var(--gold);}
+  .planCard .tag{font-size:11.5px;color:var(--gold);margin-bottom:6px;}
+  .planCard h3{margin:0 0 4px;font-size:18px;}
+  .planCard .price{font-size:30px;font-family:Georgia,serif;margin:10px 0 18px;}
+  .planCard .price span{font-size:13px;color:var(--muted);font-family:inherit;}
+  .planCard ul{list-style:none;margin:0 0 22px;padding:0;flex:1;}
+  .planCard li{font-size:13.5px;color:var(--muted);padding:6px 0;border-top:1px solid var(--line);}
+  .planCard li:first-child{border-top:none;}
+  .planCard li b{color:var(--text);}
+  .planCard button{padding:11px;border-radius:8px;border:none;font-weight:600;font-size:14px;}
+  .planCard.free button{background:var(--night-2);color:var(--muted);border:1px solid var(--line);}
+  .planCard.highlight button{background:var(--gold);color:#1a1200;}
+
+  /* ---- Settings pane ---- */
+  .settingsBlock{max-width:460px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:22px;margin-bottom:16px;}
+  .settingsBlock h3{margin:0 0 14px;font-size:14px;}
+  .settingsRow{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:13.5px;}
+  .settingsRow:first-of-type{border-top:none;}
+  .settingsRow .muted{color:var(--muted);}
+  .smallBtn{padding:7px 14px;border-radius:7px;border:1px solid var(--line);background:var(--night-2);color:var(--text);font-size:12.5px;}
+  .smallBtn.danger{border-color:var(--danger);color:var(--danger);background:none;}
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--panel);border:1px solid var(--aqua);color:var(--text);
+    padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:100;
+  }
+  .toast.show{opacity:1;}
+
+  @media(max-width:760px){
+    .sidebar{width:76px;padding:14px 8px;}
+    .sidebar .brandName,.navBtn span.label,.userName,.planBadge,.upgradeMini{display:none;}
+    .navBtn{justify-content:center;}
+    .userRow{justify-content:center;}
+    .msg{max-width:88%;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ AUTH SCREEN ============ -->
+<section id="authScreen" class="screen active">
+  <div class="authCard">
+    <div class="brand"><div class="brandDot"></div><div class="brandName">Skydot</div></div>
+
+    <div id="loginForm">
+      <h1>Welcome back</h1>
+      <p class="sub">Log in to continue to your workspace</p>
+      <div class="field"><label>Email</label><input type="email" id="loginEmail" placeholder="you@example.com"></div>
+      <div class="field"><label>Password</label><input type="password" id="loginPass" placeholder="••••••••"></div>
+      <button class="primaryBtn" onclick="handleLogin()">Log in</button>
+      <div class="authErr" id="loginErr"></div>
+      <div class="ghostLink">New to Skydot? <button onclick="showSignup()">Create an account</button></div>
+    </div>
+
+    <div id="signupForm" style="display:none;">
+      <h1>Create your account</h1>
+      <p class="sub">Free plan includes 5 uploads &amp; 4 voice commands</p>
+      <div class="field"><label>Email</label><input type="email" id="signupEmail" placeholder="you@example.com"></div>
+      <div class="field"><label>Password</label><input type="password" id="signupPass" placeholder="Create a password"></div>
+      <button class="primaryBtn" onclick="handleSignup()">Sign up</button>
+      <div class="authErr" id="signupErr"></div>
+      <div class="ghostLink">Already have an account? <button onclick="showLogin()">Log in</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WELCOME OVERLAY (first-time name capture) ============ -->
+<div id="welcomeOverlay">
+  <div class="welcomeBox">
+    <div class="aiAvatar" id="aiAvatarBig"><span class="eye l"></span><span class="eye r"></span><span class="mouth"></span></div>
+    <h2 id="welcomeTitle">What should we call you?</h2>
+    <p id="welcomeSub" style="margin-bottom:18px;">Skydot uses your name to personalise every session.</p>
+    <div class="field" id="nameFieldWrap" style="max-width:280px;margin:0 auto 14px;">
+      <input type="text" id="nameInput" placeholder="Your first name" style="width:100%;padding:11px 12px;background:var(--night-2);border:1px solid var(--line);border-radius:8px;color:var(--text);font-size:14px;text-align:center;">
+    </div>
+    <button class="primaryBtn" style="max-width:280px;margin:0 auto;" onclick="submitName()">Continue</button>
+  </div>
+</div>
+
+<!-- ============ APP SCREEN ============ -->
+<section id="appScreen" class="screen">
+  <aside class="sidebar">
+    <div class="brand"><div class="brandDot"></div><div class="brandName">Skydot</div></div>
+
+    <button class="navBtn active" data-pane="chatPane" onclick="switchPane('chatPane',this)">💬 <span class="label">Chat</span></button>
+    <button class="navBtn" data-pane="pricingPane" onclick="switchPane('pricingPane',this)">✨ <span class="label">Upgrade</span></button>
+    <button class="navBtn" data-pane="settingsPane" onclick="switchPane('settingsPane',this)">⚙️ <span class="label">Settings</span></button>
+
+    <div class="navSpacer"></div>
+
+    <div class="planBadge" id="sidePlanBadge">Plan: <b>Free</b></div>
+    <button class="upgradeMini" onclick="switchPane('pricingPane', document.querySelector('[data-pane=pricingPane]'))">Upgrade — ₹99/mo</button>
+
+    <div class="userRow">
+      <div class="userAvatar" id="avatarInitial">S</div>
+      <div class="userName" id="sideUserName">Guest</div>
+      <button class="logoutBtn" onclick="handleLogout()">Log out</button>
+    </div>
+  </aside>
+
+  <div class="mainPane">
+
+    <!-- CHAT PANE -->
+    <div class="pane" id="chatPane" style="display:flex;flex-direction:column;padding:0;">
+      <div class="chatHeader">
+        <div class="headerBrandRow">
+          <div class="aiAvatar mini" id="aiAvatarMini"><span class="eye l"></span><span class="eye r"></span><span class="mouth"></span></div>
+          <h2 id="chatGreeting">Chat</h2>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <span class="limitPill" id="uploadPill">Uploads: 5 left</span>
+          <span class="limitPill" id="voicePill">Voice: 3 left</span>
+        </div>
+      </div>
+      <div class="chatBody" id="chatBody"></div>
+      <div class="chatInputBar">
+        <div class="attachRow" id="attachRow"></div>
+        <div class="inputWrap">
+          <button class="iconBtn" title="Attach a file" onclick="document.getElementById('fileInput').click()">📎</button>
+          <input type="file" id="fileInput" style="display:none" onchange="handleFileUpload(this)">
+          <textarea id="chatInput" rows="1" placeholder="Message Skydot..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+          <button class="iconBtn" id="micBtn" title="Voice command" onclick="handleVoice()">🎤</button>
+          <button class="sendBtn" onclick="sendMessage()">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRICING PANE -->
+    <div class="pane" id="pricingPane" style="display:none;">
+      <h1>Simple pricing</h1>
+      <p class="lead">Start free. Upgrade whenever your work outgrows the limits.</p>
+      <div class="plans">
+        <div class="planCard free">
+          <div class="tag">STARTER</div>
+          <h3>Free</h3>
+          <div class="price">₹0 <span>/ forever</span></div>
+          <ul>
+            <li>Personalised name-based welcome</li>
+            <li><b>5</b> file / document uploads</li>
+            <li><b>3</b> AI voice commands (auto-spoken by Skydot)</li>
+            <li>Standard response speed</li>
+          </ul>
+          <button id="freeBtn" onclick="setPlan('free')">Current plan</button>
+        </div>
+        <div class="planCard highlight">
+          <div class="tag">MOST POPULAR</div>
+          <h3>Skydot Pro</h3>
+          <div class="price">₹99 <span>/ month</span></div>
+          <ul>
+            <li>Personalised name-based welcome</li>
+            <li><b>Unlimited</b> file / document uploads</li>
+            <li><b>Unlimited</b> AI voice commands</li>
+            <li>Priority response speed</li>
+          </ul>
+          <button id="proBtn" onclick="setPlan('pro')">Upgrade to Pro</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS PANE -->
+    <div class="pane" id="settingsPane" style="display:none;">
+      <h1>Settings</h1>
+      <p class="lead">Manage your profile and subscription.</p>
+
+      <div class="settingsBlock">
+        <h3>Profile</h3>
+        <div class="settingsRow"><span class="muted">Name</span>
+          <span style="display:flex;gap:8px;align-items:center;">
+            <input id="settingsNameInput" style="width:140px;padding:6px 8px;background:var(--night-2);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:13px;">
+            <button class="smallBtn" onclick="saveName()">Save</button>
+          </span>
+        </div>
+        <div class="settingsRow"><span class="muted">Email</span><span id="settingsEmail">—</span></div>
+      </div>
+
+      <div class="settingsBlock">
+        <h3>Subscription</h3>
+        <div class="settingsRow"><span class="muted">Current plan</span><span id="settingsPlan">Free</span></div>
+        <div class="settingsRow"><span class="muted">Uploads used</span><span id="settingsUploads">0 / 5</span></div>
+        <div class="settingsRow"><span class="muted">Voice commands used</span><span id="settingsVoice">0 / 3</span></div>
+        <div class="settingsRow"><span class="muted">Billing</span>
+          <button class="smallBtn" onclick="switchPane('pricingPane', document.querySelector('[data-pane=pricingPane]'))">Manage plan</button>
+        </div>
+      </div>
+
+      <div class="settingsBlock">
+        <h3>Account</h3>
+        <div class="settingsRow"><span class="muted">Sign out of Skydot</span><button class="smallBtn danger" onclick="handleLogout()">Log out</button></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   Skydot — front-end demo logic.
+   Accounts, usage counters and chat replies are simulated in the
+   browser (localStorage) so the whole product can be explored
+   without a server. See server.js for the real backend to wire
+   this up to an actual database, AI model and payment gateway.
+   ============================================================ */
+
+const DB_KEY = 'skydot_users_v1';
+const SESSION_KEY = 'skydot_session_v1';
+
+function loadUsers(){ return JSON.parse(localStorage.getItem(DB_KEY) || '{}'); }
+function saveUsers(u){ localStorage.setItem(DB_KEY, JSON.stringify(u)); }
+function setSession(email){ localStorage.setItem(SESSION_KEY, email); }
+function getSession(){ return localStorage.getItem(SESSION_KEY); }
+function clearSession(){ localStorage.removeItem(SESSION_KEY); }
+
+let currentUser = null;
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+/* ---------------- Auth screen toggling ---------------- */
+function showSignup(){ document.getElementById('loginForm').style.display='none'; document.getElementById('signupForm').style.display='block'; }
+function showLogin(){ document.getElementById('signupForm').style.display='none'; document.getElementById('loginForm').style.display='block'; }
+
+function handleSignup(){
+  const email = document.getElementById('signupEmail').value.trim().toLowerCase();
+  const pass = document.getElementById('signupPass').value;
+  const err = document.getElementById('signupErr');
+  if(!email || !pass){ err.textContent='Please fill in both fields.'; return; }
+  const users = loadUsers();
+  if(users[email]){ err.textContent='An account with this email already exists.'; return; }
+  users[email] = { email, pass, name:null, plan:'free', uploadsUsed:0, voiceUsed:0, welcomed:false };
+  saveUsers(users);
+  err.textContent='';
+  loginAs(email);
+}
+
+function handleLogin(){
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pass = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginErr');
+  const users = loadUsers();
+  if(!users[email] || users[email].pass !== pass){ err.textContent='Incorrect email or password.'; return; }
+  err.textContent='';
+  loginAs(email);
+}
+
+function loginAs(email){
+  setSession(email);
+  currentUser = loadUsers()[email];
+  document.getElementById('authScreen').classList.remove('active');
+  document.getElementById('appScreen').classList.add('active');
+  if(!currentUser.welcomed){
+    document.getElementById('welcomeTitle').textContent = 'What should we call you?';
+    document.getElementById('welcomeSub').textContent = 'Skydot uses your name to personalise every session.';
+    document.getElementById('nameInput').value='';
+    document.getElementById('welcomeOverlay').classList.add('active');
+    // AI speaks on its own the moment someone enters — no button press needed.
+    setTimeout(()=>speakText("Welcome to Skydot, sir! Before we begin, what should I call you?", ['aiAvatarBig']), 450);
+  } else {
+    renderApp();
+    setTimeout(()=>{
+      const greet = `Welcome back to Skydot, ${currentUser.name}! How can I help you today?`;
+      addMessage('ai', greet);
+      speakText(greet, ['aiAvatarMini']);
+    }, 500);
+  }
+}
+
+function submitName(){
+  const val = document.getElementById('nameInput').value.trim();
+  if(!val){ return; }
+  const users = loadUsers();
+  users[currentUser.email].name = val;
+  users[currentUser.email].welcomed = true;
+  saveUsers(users);
+  currentUser = users[currentUser.email];
+  document.getElementById('welcomeOverlay').classList.remove('active');
+  renderApp();
+  const welcomeMsg = `Welcome to Skydot, ${val}! I'm ready when you are — ask me anything, attach a file, or use your voice.`;
+  addMessage('ai', welcomeMsg);
+  setTimeout(()=>speakText(welcomeMsg, ['aiAvatarMini']), 300);
+}
+
+/* ---------------- Text-to-speech: the AI "talks" on its own ---------------- */
+let skydotVoice = null;
+function loadSkydotVoice(){
+  const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  skydotVoice = voices.find(v=>/en-IN/i.test(v.lang)) || voices.find(v=>/en-GB|en-US/i.test(v.lang)) || voices[0] || null;
+}
+if('speechSynthesis' in window){
+  window.speechSynthesis.onvoiceschanged = loadSkydotVoice;
+  loadSkydotVoice();
+}
+function speakText(text, avatarIds){
+  const avatars = (avatarIds||[]).map(id=>document.getElementById(id)).filter(Boolean);
+  if(!('speechSynthesis' in window)){
+    // Speech not supported by this browser — just animate the avatar briefly so it still feels alive.
+    avatars.forEach(a=>a.classList.add('speaking'));
+    setTimeout(()=>avatars.forEach(a=>a.classList.remove('speaking')), Math.min(4000, text.length*60));
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 1; utter.pitch = 1.02;
+  if(skydotVoice) utter.voice = skydotVoice;
+  utter.onstart = ()=> avatars.forEach(a=>a.classList.add('speaking'));
+  utter.onend   = ()=> avatars.forEach(a=>a.classList.remove('speaking'));
+  utter.onerror = ()=> avatars.forEach(a=>a.classList.remove('speaking'));
+  window.speechSynthesis.speak(utter);
+}
+
+function handleLogout(){
+  clearSession();
+  currentUser = null;
+  document.getElementById('appScreen').classList.remove('active');
+  document.getElementById('authScreen').classList.add('active');
+  document.getElementById('chatBody').innerHTML='';
+  showLogin();
+}
+
+/* ---------------- Rendering the logged-in app ---------------- */
+function renderApp(){
+  const u = currentUser;
+  document.getElementById('sideUserName').textContent = u.name || u.email;
+  document.getElementById('avatarInitial').textContent = (u.name || u.email)[0].toUpperCase();
+  document.getElementById('chatGreeting').textContent = u.name ? `Hi ${u.name}, what are we building today?` : 'Chat';
+  document.getElementById('settingsNameInput').value = u.name || '';
+  document.getElementById('settingsEmail').textContent = u.email;
+  updatePlanUI();
+}
+
+function updatePlanUI(){
+  const u = currentUser;
+  const isPro = u.plan === 'pro';
+  document.getElementById('sidePlanBadge').innerHTML = `Plan: <b>${isPro ? 'Pro' : 'Free'}</b>`;
+  document.getElementById('sidePlanBadge').className = 'planBadge' + (isPro ? ' pro' : '');
+  document.querySelector('.upgradeMini').style.display = isPro ? 'none' : 'block';
+
+  document.getElementById('uploadPill').textContent = isPro ? 'Uploads: unlimited' : `Uploads: ${5-u.uploadsUsed} left`;
+  document.getElementById('voicePill').textContent = isPro ? 'Voice: unlimited' : `Voice: ${3-u.voiceUsed} left`;
+
+  document.getElementById('settingsPlan').textContent = isPro ? 'Skydot Pro (₹99/mo)' : 'Free';
+  document.getElementById('settingsUploads').textContent = isPro ? `${u.uploadsUsed} / Unlimited` : `${u.uploadsUsed} / 5`;
+  document.getElementById('settingsVoice').textContent = isPro ? `${u.voiceUsed} / Unlimited` : `${u.voiceUsed} / 3`;
+
+  document.getElementById('freeBtn').textContent = isPro ? 'Downgrade to Free' : 'Current plan';
+  document.getElementById('proBtn').textContent = isPro ? 'Current plan' : 'Upgrade to Pro';
+}
+
+function setPlan(plan){
+  if(plan === currentUser.plan) return;
+  if(plan === 'pro'){
+    showToast('Payment simulated — Skydot Pro activated for ₹99/month.');
+  } else {
+    showToast('Switched back to the Free plan.');
+  }
+  const users = loadUsers();
+  users[currentUser.email].plan = plan;
+  saveUsers(users);
+  currentUser = users[currentUser.email];
+  updatePlanUI();
+}
+
+function saveName(){
+  const val = document.getElementById('settingsNameInput').value.trim();
+  if(!val) return;
+  const users = loadUsers();
+  users[currentUser.email].name = val;
+  saveUsers(users);
+  currentUser = users[currentUser.email];
+  renderApp();
+  showToast('Name updated.');
+}
+
+/* ---------------- Nav switching ---------------- */
+function switchPane(id, btn){
+  document.querySelectorAll('.mainPane > .pane').forEach(p=>p.style.display='none');
+  document.getElementById(id).style.display = id==='chatPane' ? 'flex' : 'block';
+  document.querySelectorAll('.navBtn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+}
+
+/* ---------------- Chat ---------------- */
+function addMessage(who, text){
+  const body = document.getElementById('chatBody');
+  const div = document.createElement('div');
+  div.className = 'msg ' + who;
+  div.textContent = text;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+}
+
+function mockAIReply(userText){
+  const replies = [
+    "Got it — here's a quick breakdown of that.",
+    "I can help with that. Here's a starting point you can build on.",
+    "Interesting — let's work through it step by step.",
+    "Here's what I'd suggest, based on what you've shared."
+  ];
+  return replies[Math.floor(Math.random()*replies.length)] + ' (This is a demo reply — connect a real model in server.js to get live answers.)';
+}
+
+function sendMessage(){
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if(!text) return;
+  addMessage('user', text);
+  input.value='';
+  setTimeout(()=>{
+    const reply = mockAIReply(text);
+    addMessage('ai', reply);
+    speakText(reply, ['aiAvatarMini']); // AI speaks its reply on its own — no mic press needed to hear it
+  }, 400);
+}
+
+/* ---------------- File uploads (limited on Free) ---------------- */
+function handleFileUpload(el){
+  const u = currentUser;
+  if(u.plan !== 'pro' && u.uploadsUsed >= 5){
+    showToast('Free plan upload limit reached — upgrade to Skydot Pro for unlimited uploads.');
+    el.value='';
+    switchPane('pricingPane', document.querySelector('[data-pane=pricingPane]'));
+    return;
+  }
+  const file = el.files[0];
+  if(!file) return;
+  const users = loadUsers();
+  users[u.email].uploadsUsed += 1;
+  saveUsers(users);
+  currentUser = users[u.email];
+  updatePlanUI();
+  const chip = document.createElement('span');
+  chip.className='attachChip';
+  chip.textContent = '📎 ' + file.name;
+  document.getElementById('attachRow').appendChild(chip);
+  addMessage('sys', `Attached "${file.name}"`);
+  el.value='';
+}
+
+/* ---------------- Voice command (limited on Free) ---------------- */
+function handleVoice(){
+  const u = currentUser;
+  if(u.plan !== 'pro' && u.voiceUsed >= 3){
+    showToast('Free plan voice-command limit reached — upgrade to Skydot Pro for unlimited voice commands.');
+    switchPane('pricingPane', document.querySelector('[data-pane=pricingPane]'));
+    return;
+  }
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const micBtn = document.getElementById('micBtn');
+
+  function countUsage(){
+    const users = loadUsers();
+    users[u.email].voiceUsed += 1;
+    saveUsers(users);
+    currentUser = users[u.email];
+    updatePlanUI();
+  }
+
+  if(!SpeechRec){
+    // Browser doesn't support speech recognition — simulate the command.
+    countUsage();
+    addMessage('sys', '🎤 Voice command captured (speech recognition not supported in this browser — demo mode).');
+    return;
+  }
+  const rec = new SpeechRec();
+  rec.lang = 'en-IN';
+  rec.onstart = ()=> micBtn.classList.add('recording');
+  rec.onend = ()=> micBtn.classList.remove('recording');
+  rec.onresult = (e)=>{
+    const said = e.results[0][0].transcript;
+    countUsage();
+    addMessage('user', '🎤 ' + said);
+    setTimeout(()=>{
+      const reply = mockAIReply(said);
+      addMessage('ai', reply);
+      speakText(reply, ['aiAvatarMini']);
+    }, 400);
+  };
+  rec.onerror = ()=> micBtn.classList.remove('recording');
+  rec.start();
+}
+
+/* ---------------- Boot ---------------- */
+window.onload = function(){
+  const email = getSession();
+  if(email){
+    const users = loadUsers();
+    if(users[email]){
+      currentUser = users[email];
+      document.getElementById('authScreen').classList.remove('active');
+      document.getElementById('appScreen').classList.add('active');
+      if(!currentUser.welcomed){
+        document.getElementById('welcomeOverlay').classList.add('active');
+        setTimeout(()=>speakText("Welcome to Skydot, sir! Before we begin, what should I call you?", ['aiAvatarBig']), 450);
+      } else {
+        renderApp();
+        setTimeout(()=>{
+          const greet = `Welcome back to Skydot, ${currentUser.name}! How can I help you today?`;
+          addMessage('ai', greet);
+          speakText(greet, ['aiAvatarMini']);
+        }, 500);
+      }
+      return;
+    }
+  }
+};
+</script>
+</body>
+</html>

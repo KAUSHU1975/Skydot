@@ -1,0 +1,22 @@
+{
+  "name": "skydot",
+  "version": "1.0.0",
+  "description": "- **index.html** — Poori Skydot website ek hi file mein, abhi chalane ke liye ready hai (demo mode). Isme:   - Login / signup page   - Pehli baar login karne par naam poochta hai aur naam se welcome karta hai (free plan mein bhi)   - Chat screen — AI ka apna ek **avatar/character** hai (chehra jisme aankhen aur mooh hai) jo baat karte waqt animate hota hai, taaki lage ki AI aapse baat kar raha hai   - Website mein enter karte hi (login/signup ke baad, ya naam poochte waqt) **AI khud bolta hai** — koi button dabana nahi padta, seedha awaaz mein welcome karta hai   - Chat mein jab bhi AI reply deta hai, wo bhi khud bol kar sunata hai (sirf text nahi)   - File upload — Free plan mein **5 baar**, Pro plan mein **unlimited**   - Voice command (🎤 button se bolo, AI sunkar text banata hai aur bol kar jawab deta hai) — Free mein **3 baar**, Pro mein **unlimited**   - Pricing page — Free vs **Skydot Pro ₹99/month**   - Settings page — naam change, plan/usage dekhna   - Logout   - Bas isi file ko double-click karke browser mein kholo, turant chalega — koi install nahi chahiye.",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.3.0"
+  }
+}
