@@ -751,10 +751,12 @@ function handleVoice(){
     if(activeRecognition === rec) activeRecognition = null;
   };
   rec.onresult = (e)=>{
-    if(gotResult || !e.results[0].isFinal) return;
+    const result = e.results[e.resultIndex];
+    if(gotResult || !result || !result.isFinal) return;
     gotResult = true;
     rec.stop();
-    const said = e.results[0][0].transcript;
+    const said = result[0].transcript.trim();
+    if(!said) return;
     countUsage();
     speakText('Okay sir, I am listening. Let me prepare your answer.', ['aiAvatarMini']);
     setTimeout(async ()=>{
