@@ -751,7 +751,9 @@ function handleVoice(){
     if(activeRecognition === rec) activeRecognition = null;
   };
   rec.onresult = (e)=>{
+    if(gotResult || !e.results[0].isFinal) return;
     gotResult = true;
+    rec.stop();
     const said = e.results[0][0].transcript;
     countUsage();
     speakText('Okay sir, I am listening. Let me prepare your answer.', ['aiAvatarMini']);
