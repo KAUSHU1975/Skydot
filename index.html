@@ -86,8 +86,7 @@
   /* ---------- AI avatar (the "face" that talks) ---------- */
   .aiAvatar{
     width:70px;height:70px;border-radius:50%;margin:0 auto 22px;position:relative;flex-shrink:0;
-    background:radial-gradient(circle at 35% 30%, #9CF0E7, var(--aqua));
-    box-shadow:0 0 26px rgba(79,209,197,.45);transition:box-shadow .15s;
+    background:transparent;border:2px solid var(--aqua);box-shadow:none;transition:border-color .15s;
   }
   .aiAvatar .eye{position:absolute;width:7px;height:7px;background:var(--night);border-radius:50%;top:25px;transition:height .1s;}
   .aiAvatar .eye.l{left:21px;} .aiAvatar .eye.r{right:21px;}
@@ -95,12 +94,12 @@
     position:absolute;left:50%;bottom:17px;transform:translateX(-50%);
     width:22px;height:4px;background:var(--night);border-radius:4px;transition:height .1s;
   }
-  .aiAvatar.speaking{box-shadow:0 0 40px rgba(79,209,197,.85);}
+  .aiAvatar.speaking{border-color:#9CF0E7;}
   .aiAvatar.speaking .mouth{animation:talk .3s ease-in-out infinite;}
   .aiAvatar.speaking .eye{animation:blink 2.4s ease-in-out infinite;}
   @keyframes talk{0%,100%{height:4px;}50%{height:13px;}}
   @keyframes blink{0%,92%,100%{height:7px;}96%{height:1px;}}
-  .aiAvatar.mini{width:34px;height:34px;margin:0;box-shadow:none;}
+  .aiAvatar.mini{width:34px;height:34px;margin:0;border-width:1px;}
   .aiAvatar.mini .eye{width:4px;height:4px;top:12px;}
   .aiAvatar.mini .eye.l{left:10px;} .aiAvatar.mini .eye.r{right:10px;}
   .aiAvatar.mini .mouth{width:11px;height:2px;bottom:8px;}
@@ -347,6 +346,17 @@
       </div>
 
       <div class="settingsBlock">
+        <h3>Voice language</h3>
+        <div class="settingsRow"><span class="muted">Speak in</span>
+          <select id="voiceLanguage" onchange="saveVoiceLanguage()" style="padding:6px 8px;background:var(--night-2);border:1px solid var(--line);border-radius:6px;color:var(--text);font-size:13px;">
+            <option value="en-IN">English (India)</option>
+            <option value="hi-IN">Hindi</option>
+            <option value="en-US">English (US)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settingsBlock">
         <h3>Subscription</h3>
         <div class="settingsRow"><span class="muted">Current plan</span><span id="settingsPlan">Free</span></div>
         <div class="settingsRow"><span class="muted">Uploads used</span><span id="settingsUploads">0 / 5</span></div>
@@ -461,7 +471,8 @@ function submitName(){
 let skydotVoice = null;
 function loadSkydotVoice(){
   const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
-  skydotVoice = voices.find(v=>/en-IN/i.test(v.lang)) || voices.find(v=>/en-GB|en-US/i.test(v.lang)) || voices[0] || null;
+  const language = localStorage.getItem('skydot_voice_language_v1') || 'en-IN';
+  skydotVoice = voices.find(v=>v.lang.toLowerCase() === language.toLowerCase()) || voices.find(v=>v.lang.toLowerCase().startsWith(language.slice(0, 2).toLowerCase())) || voices[0] || null;
 }
 if('speechSynthesis' in window){
   window.speechSynthesis.onvoiceschanged = loadSkydotVoice;
@@ -477,7 +488,8 @@ function speakText(text, avatarIds){
   }
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 1; utter.pitch = 1.02;
+  utter.rate = 0.78; utter.pitch = 1.02;
+  utter.lang = localStorage.getItem('skydot_voice_language_v1') || 'en-IN';
   if(skydotVoice) utter.voice = skydotVoice;
   utter.onstart = ()=> avatars.forEach(a=>a.classList.add('speaking'));
   utter.onend   = ()=> avatars.forEach(a=>a.classList.remove('speaking'));
@@ -502,7 +514,15 @@ function renderApp(){
   document.getElementById('chatGreeting').textContent = u.name ? `Hi ${u.name}, what are we building today?` : 'Chat';
   document.getElementById('settingsNameInput').value = u.name || '';
   document.getElementById('settingsEmail').textContent = u.email;
+  document.getElementById('voiceLanguage').value = localStorage.getItem('skydot_voice_language_v1') || 'en-IN';
   updatePlanUI();
+}
+
+function saveVoiceLanguage(){
+  const language = document.getElementById('voiceLanguage').value;
+  localStorage.setItem('skydot_voice_language_v1', language);
+  loadSkydotVoice();
+  showToast('Voice language updated.');
 }
 
 function updatePlanUI(){
@@ -639,7 +659,7 @@ function handleVoice(){
     return;
   }
   const rec = new SpeechRec();
-  rec.lang = 'en-IN';
+  rec.lang = localStorage.getItem('skydot_voice_language_v1') || 'en-IN';
   rec.onstart = ()=> micBtn.classList.add('recording');
   rec.onend = ()=> micBtn.classList.remove('recording');
   rec.onresult = (e)=>{
