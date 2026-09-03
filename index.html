@@ -499,11 +499,11 @@ function getVoiceLanguage(){
 
 function detectVoiceLanguage(text){
   const ranges = [
-    [/\p{Script=Devanagari}/u, 'hi-IN'], [/\p{Script=Arabic}/u, 'ur-PK'], [/\p{Script=Bengali}/u, 'bn-IN'],
-    [/\p{Script=Gujarati}/u, 'gu-IN'], [/\p{Script=Gurmukhi}/u, 'pa-IN'], [/\p{Script=Tamil}/u, 'ta-IN'],
-    [/\p{Script=Telugu}/u, 'te-IN'], [/\p{Script=Kannada}/u, 'kn-IN'], [/\p{Script=Malayalam}/u, 'ml-IN'],
-    [/\p{Script=Thai}/u, 'th-TH'], [/\p{Script=Cyrillic}/u, 'ru-RU'], [/\p{Script=Han}/u, 'zh-CN'],
-    [/\p{Script=Hiragana}|\p{Script=Katakana}/u, 'ja-JP'], [/\p{Script=Hangul}/u, 'ko-KR']
+    [/\u0900-\u097F/, 'hi-IN'], [/\u0600-\u06FF/, 'ur-PK'], [/\u0980-\u09FF/, 'bn-IN'],
+    [/\u0A80-\u0AFF/, 'gu-IN'], [/\u0A00-\u0A7F/, 'pa-IN'], [/\u0B80-\u0BFF/, 'ta-IN'],
+    [/\u0C00-\u0C7F/, 'te-IN'], [/\u0C80-\u0CFF/, 'kn-IN'], [/\u0D00-\u0D7F/, 'ml-IN'],
+    [/\u0E00-\u0E7F/, 'th-TH'], [/\u0400-\u04FF/, 'ru-RU'], [/\u3400-\u9FFF/, 'zh-CN'],
+    [/\u3040-\u30FF/, 'ja-JP'], [/\uAC00-\uD7AF/, 'ko-KR']
   ];
   return ranges.find(([pattern])=>pattern.test(text))?.[1] || getVoiceLanguage();
 }
